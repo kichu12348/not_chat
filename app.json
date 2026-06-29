@@ -34,6 +34,12 @@
         "projectId": "51db6eeb-c59f-4218-b56e-1bb0e4e2202d"
       }
     },
-    "owner": "kichu12348"
+    "owner": "kichu12348",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/51db6eeb-c59f-4218-b56e-1bb0e4e2202d"
+    }
   }
 }
