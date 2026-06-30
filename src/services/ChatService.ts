@@ -3,6 +3,7 @@ import { Encryption } from '../crypto';
 import { useChatStore, useAuthStore, ChatMessage } from '../state';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { Alert } from 'react-native';
 
 export const ChatService = {
   sendMessage: async (text: string) => {
@@ -10,7 +11,15 @@ export const ChatService = {
     const { roomId, aesKey, replyingToMessage } = state;
     const { userId } = useAuthStore.getState();
     
-    if (!roomId || !aesKey || !userId) return;
+    if (!roomId || !userId) return;
+
+    if (!aesKey) {
+      Alert.alert(
+        "Waiting for Peer",
+        "Your message cannot be encrypted and sent until the other person joins the room."
+      );
+      return;
+    }
 
     const nonce = Encryption.generateNonce();
     const ciphertext = Encryption.encrypt(text, aesKey, nonce);
@@ -97,7 +106,22 @@ export const ChatService = {
         }
       }
       
-      useChatStore.getState().setMessages(decryptedMessages);
+      const currentMessages = useChatStore.getState().messages;
+      
+      if (currentMessages.length === 0) {
+        useChatStore.getState().setMessages(decryptedMessages);
+      } else {
+        // Merge messages on reconnect
+        const newMessages = [...currentMessages];
+        decryptedMessages.forEach(msg => {
+          if (!newMessages.find(m => m.id === msg.id)) {
+            newMessages.push(msg);
+          }
+        });
+        newMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        useChatStore.getState().setMessages(newMessages);
+      }
+
       useChatStore.getState().setHasMoreMessages(messages.length === 20);
     } catch (e) {
       console.error("Failed to fetch messages", e);

@@ -1,5 +1,5 @@
 import "react-native-get-random-values";
-import React from "react";
+import React, { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { enableScreens } from "react-native-screens";
@@ -7,9 +7,10 @@ import { StatusBar } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { RootNavigator } from "./src/navigation";
 import { Theme } from "./src/theme";
+import { ScreenshotWarning } from "./src/components";
 import * as SplashScreen from "expo-splash-screen";
 import * as Updates from "expo-updates";
-import { useEffect } from "react";
+import * as ScreenCapture from "expo-screen-capture";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,7 +36,11 @@ export default function App() {
     onFetchUpdateAsync().finally(() => {
       SplashScreen.hideAsync();
     });
+
+    // Prevent screen capture globally
+    ScreenCapture.preventScreenCaptureAsync();
   }, []);
+
   return (
     <GestureHandlerRootView
       style={{ backgroundColor: Theme.colors.background, flex: 1 }}
@@ -47,6 +52,7 @@ export default function App() {
             backgroundColor={Theme.colors.background}
           />
           <RootNavigator />
+          <ScreenshotWarning />
         </KeyboardProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

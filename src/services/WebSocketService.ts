@@ -12,11 +12,12 @@ class WebSocketManager {
     this.roomId = roomId;
     const token = useAuthStore.getState().token;
 
-    // In React Native, WebSocket is globally available
-    // Passing token via query param for this prototype
-    this.ws = new WebSocket(
-      `${WS_BASE_URL}${WS_ENDPOINT(roomId)}?token=${token}`,
-    );
+    if (!token) {
+      useAuthStore.getState().logout();
+      return;
+    }
+
+    this.ws = new WebSocket(`${WS_BASE_URL}${WS_ENDPOINT(roomId, token)}`);
 
     this.ws.onopen = () => {
       useChatStore.getState().setConnected(true);
@@ -59,9 +60,12 @@ class WebSocketManager {
       this.reconnect();
     };
 
-    this.ws.onerror = (e) => {
-      console.error("WebSocket Error", e);
-      this.ws?.close();
+    this.ws.onerror = () => {
+      useChatStore.getState().setConnected(false);
+      this.reconnect();
+      // console.error("WebSocket Error", e);
+      // Do not manually close here to avoid throwing an error if it failed to connect.
+      // The onclose event will naturally fire after onerror and trigger reconnect.
     };
   }
 
@@ -72,7 +76,7 @@ class WebSocketManager {
       this.ws = null;
     }
     useChatStore.getState().setConnected(false);
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -81,17 +85,20 @@ class WebSocketManager {
 
   private reconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (!this.roomId || !useAuthStore.getState().token) return;
     this.reconnectTimer = setTimeout(() => {
-      if (this.roomId) this.connect(this.roomId);
+      this.connect(this.roomId!);
     }, 3000);
   }
 
   sendTypingStatus(isTyping: boolean) {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: isTyping ? "typing_start" : "typing_stop",
-        senderId: useAuthStore.getState().token,
-      }));
+      this.ws.send(
+        JSON.stringify({
+          type: isTyping ? "typing_start" : "typing_stop",
+          senderId: useAuthStore.getState().token,
+        }),
+      );
     }
   }
 }

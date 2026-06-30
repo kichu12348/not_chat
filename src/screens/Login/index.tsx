@@ -1,29 +1,40 @@
-import React, { useState } from "react";
-import { View, StyleSheet, Text, Platform } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, Text } from "react-native";
+import Icon from "react-native-vector-icons/Feather";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Button, Input } from "../../components";
 import { AuthService } from "../../services";
 import { Theme } from "../../theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const platform = Platform.OS;
-
 export const LoginScreen = () => {
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async () => {
-    if (!username.trim()) return;
+    if (!username.trim() || !password.trim()) return;
+    setError(null);
     setIsLoading(true);
     try {
-      await AuthService.login(username);
-    } catch (e) {
-      console.error(e);
+      await AuthService.login(username.trim(), password.trim());
+    } catch (e: any) {
+      setError(e.message || "Failed to start");
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   return (
     <View
@@ -44,9 +55,29 @@ export const LoginScreen = () => {
           <Input
             placeholder="Enter a username..."
             value={username}
-            onChangeText={setUsername}
+            onChangeText={(text) => {
+              setUsername(text.toLowerCase());
+              if (error) setError(null);
+            }}
             autoCapitalize="none"
           />
+          <View style={{ height: Theme.spacing.md }} />
+          <Input
+            placeholder="Enter a password..."
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (error) setError(null);
+            }}
+            isSecret={true}
+          />
+
+          {error && (
+            <View style={styles.errorContainer}>
+              <Icon name="alert-circle" size={16} color={Theme.colors.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
           <View style={styles.buttonWrapper}>
             <Button
@@ -54,7 +85,7 @@ export const LoginScreen = () => {
               icon="arrow-right"
               onPress={handleLogin}
               isLoading={isLoading}
-              disabled={!username.trim()}
+              disabled={!username.trim() || !password.trim()}
             />
           </View>
         </View>
@@ -97,5 +128,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     padding: Theme.spacing.xl,
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Theme.spacing.sm,
+    padding: Theme.spacing.sm,
+    backgroundColor: Theme.colors.error + "1A", // 10% opacity
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    borderColor: Theme.colors.error + "33", // 20% opacity
+  },
+  errorText: {
+    ...Theme.typography.caption,
+    color: Theme.colors.error,
+    marginLeft: Theme.spacing.xs,
+    flex: 1,
   },
 });

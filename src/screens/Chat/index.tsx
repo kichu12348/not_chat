@@ -3,10 +3,8 @@ import {
   View,
   StyleSheet,
   Text,
-  FlatList,
   Platform,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from "react-native";
 import { ChatService, WebSocketService, RoomService } from "../../services";
@@ -14,6 +12,7 @@ import { Theme } from "../../theme";
 import { useChatStore } from "../../state";
 import { format } from "date-fns";
 import Icon from "react-native-vector-icons/Feather";
+import { MessageContextMenu, SwipeToReply } from "../../components";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useNetInfo } from "@react-native-community/netinfo";
@@ -22,6 +21,11 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
+import {
+  Pressable,
+  FlatList,
+  RefreshControl,
+} from "react-native-gesture-handler";
 
 const useGradualAnimation = () => {
   const height = useSharedValue(0);
@@ -32,22 +36,24 @@ const useGradualAnimation = () => {
         "worklet";
         height.value = Math.max(event.height, 0);
       },
+      onEnd: (event) => {
+        "worklet";
+        height.value = Math.max(event.height, 0);
+      },
     },
     [],
   );
+
   return { height };
 };
 
 export const ChatScreen = () => {
   const { height } = useGradualAnimation();
 
-  const fakeView = useAnimatedStyle(() => {
-    return {
-      height: Math.abs(height.value),
-    };
-  }, []);
-
   const [text, setText] = useState("");
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<any>(null);
+
   const messages = useChatStore((state) => state.messages);
   const roomId = useChatStore((state) => state.roomId);
   const aesKey = useChatStore((state) => state.aesKey);
@@ -64,6 +70,12 @@ export const ChatScreen = () => {
   const typingTimeoutRef = useRef<any>(null);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+
+  const fakeView = useAnimatedStyle(() => {
+    return {
+      height: Math.abs(height.value) - insets.bottom,
+    };
+  }, []);
 
   useEffect(() => {
     if (roomId) {
@@ -88,7 +100,7 @@ export const ChatScreen = () => {
   const handleTextChange = (newText: string) => {
     setText(newText);
 
-    if (!aesKey) return;
+    if (!aesKey || !newText.trim()) return;
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -103,7 +115,13 @@ export const ChatScreen = () => {
   };
 
   const handleSend = () => {
-    if (!text.trim() || !aesKey) return;
+    if (!text.trim()) return;
+
+    if (!aesKey) {
+      ChatService.sendMessage(text.trim());
+      return;
+    }
+
     ChatService.sendMessage(text.trim());
     setText("");
 
@@ -114,33 +132,22 @@ export const ChatScreen = () => {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderMessageBubble = (item: any) => {
     const isMe = item.isSentByMe;
     const repliedMsg = item.replyToId
       ? messages.find((m) => m.id === item.replyToId)
       : null;
 
     return (
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.messageBubble,
           isMe ? styles.messageMe : styles.messageThem,
         ]}
         onLongPress={() => {
-          const options = [
-            { text: "Reply", onPress: () => setReplyingToMessage(item) },
-          ];
-          if (isMe) {
-            options.push({
-              text: "Delete",
-              onPress: () => ChatService.deleteMessage(item.id),
-            });
-          }
-          options.push({ text: "Cancel", style: "cancel" } as any);
-
-          Alert.alert("Message", "What would you like to do?", options);
+          setSelectedMessage(item);
+          setContextMenuVisible(true);
         }}
-        activeOpacity={0.8}
       >
         {repliedMsg && (
           <View
@@ -176,12 +183,31 @@ export const ChatScreen = () => {
         >
           {format(new Date(item.timestamp), "h:mm a")}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
+    );
+  };
+
+  const renderItem = ({ item }: { item: any }) => {
+    return (
+      <SwipeToReply
+        isMe={item.isSentByMe}
+        onReply={() => setReplyingToMessage(item)}
+      >
+        {renderMessageBubble(item)}
+      </SwipeToReply>
     );
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : Theme.spacing.sm,
+        },
+      ]}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -221,9 +247,6 @@ export const ChatScreen = () => {
                     : ""}
                 </Text>
               )}
-            {!aesKey && (
-              <Text style={styles.statusText}> | Waiting for peer...</Text>
-            )}
           </View>
         </View>
         <View style={styles.headerRight} />
@@ -241,8 +264,15 @@ export const ChatScreen = () => {
           }
         }}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-        refreshing={isLoadingMore}
-        onRefresh={() => roomId && ChatService.loadMoreMessages(roomId)}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoadingMore}
+            onRefresh={() => roomId && ChatService.loadMoreMessages(roomId)}
+            tintColor={Theme.colors.textMuted}
+            colors={[Theme.colors.background]}
+            progressBackgroundColor={Theme.colors.text}
+          />
+        }
       />
 
       {replyingToMessage && (
@@ -278,45 +308,58 @@ export const ChatScreen = () => {
         </View>
       )}
 
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            paddingBottom: insets.bottom > 0 ? insets.bottom : Theme.spacing.sm,
-          },
-        ]}
-      >
+      <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.textInput}
             placeholder={
-              !aesKey
-                ? "Waiting for peer..."
-                : isFetchingMessages
-                  ? "Syncing messages..."
-                  : "Message..."
+              isFetchingMessages ? "Syncing messages..." : "Message..."
             }
             placeholderTextColor={Theme.colors.textMuted}
             value={text}
             onChangeText={handleTextChange}
-            editable={!!aesKey && !isFetchingMessages}
+            editable={!isFetchingMessages}
             multiline={true}
           />
           <TouchableOpacity
             style={[
               styles.sendButton,
-              !aesKey || isFetchingMessages || !text.trim()
-                ? styles.sendDisabled
-                : null,
+              isFetchingMessages || !text.trim() ? styles.sendDisabled : null,
             ]}
             onPress={handleSend}
-            disabled={!aesKey || isFetchingMessages || !text.trim()}
+            disabled={isFetchingMessages || !text.trim()}
           >
             <Icon name="arrow-up" size={16} color={Theme.colors.textInverted} />
           </TouchableOpacity>
         </View>
       </View>
       <Animated.View style={fakeView} />
+
+      {selectedMessage && (
+        <MessageContextMenu
+          visible={contextMenuVisible}
+          messagePreview={renderMessageBubble(selectedMessage)}
+          onClose={() => setContextMenuVisible(false)}
+          options={[
+            {
+              icon: "corner-up-left",
+              text: "Reply",
+              onPress: () => setReplyingToMessage(selectedMessage),
+            },
+            ...(selectedMessage.isSentByMe
+              ? [
+                  {
+                    icon: "trash-2",
+                    text: "Delete Message",
+                    color: Theme.colors.error,
+                    onPress: () =>
+                      ChatService.deleteMessage(selectedMessage.id),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      )}
     </View>
   );
 };
@@ -396,10 +439,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     paddingHorizontal: Theme.spacing.md,
-    paddingVertical: Theme.spacing.sm,
-    backgroundColor: Theme.colors.background,
-    // borderTopWidth: 1,
-    // borderTopColor: Theme.colors.border,
+    paddingBottom: Theme.spacing.sm,
   },
   inputWrapper: {
     flexDirection: "row",
@@ -434,8 +474,7 @@ const styles = StyleSheet.create({
   },
   replyingToContainer: {
     flexDirection: "row",
-    padding: Theme.spacing.sm,
-    backgroundColor: Theme.colors.surface,
+    padding: Theme.spacing.md,
     borderTopWidth: 1,
     borderTopColor: Theme.colors.border,
     alignItems: "center",

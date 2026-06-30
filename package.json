@@ -18,6 +18,8 @@
     "axios": "^1.18.1",
     "date-fns": "^4.4.0",
     "expo": "~54.0.34",
+    "expo-clipboard": "~8.0.8",
+    "expo-screen-capture": "~8.0.9",
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",

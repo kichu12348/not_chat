@@ -9,12 +9,16 @@ import { ChatStackParamList } from "../../navigation";
 import { useChatStore } from "../../state";
 import Icon from "react-native-vector-icons/Feather";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Clipboard from "expo-clipboard";
 
 export const CreateRoomScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<ChatStackParamList>>();
   const [isLoading, setIsLoading] = useState(false);
+  const [isEntering, setIsEntering] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleCreate = async () => {
     setIsLoading(true);
@@ -23,14 +27,34 @@ export const CreateRoomScreen = () => {
       setRoomCode(code);
       useChatStore.getState().setRoom(code);
     } catch (e) {
-      console.error(e);
+      setError(e.response?.data.error || "Error while creating room");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEnterChat = () => {
-    navigation.replace("Chat");
+  const handleEnterChat = async () => {
+    setIsEntering(true);
+    setError(null);
+    try {
+      const success = await RoomService.deriveSharedKey(roomCode!);
+      if (!success) {
+        setError("No Peer in Room");
+        return;
+      }
+      navigation.replace("Chat");
+    } catch (e) {
+      setError(e.response?.data?.error || "Waiting for peer to join...");
+    } finally {
+      setIsEntering(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!roomCode) return;
+    await Clipboard.setStringAsync(roomCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const insets = useSafeAreaInsets();
@@ -82,14 +106,38 @@ export const CreateRoomScreen = () => {
             />
             <Text style={styles.title}>ROOM READY</Text>
             <Text style={styles.subtitle}>Share this code:</Text>
-            <View style={styles.codeContainer}>
+
+            <TouchableOpacity
+              style={styles.codeContainer}
+              onPress={handleCopy}
+              activeOpacity={0.7}
+            >
               <Text style={styles.codeText}>{roomCode}</Text>
-            </View>
-            <View style={{ width: "100%" }}>
+              <Icon
+                name={copied ? "check" : "copy"}
+                size={20}
+                color={copied ? Theme.colors.success : Theme.colors.textMuted}
+                style={styles.copyIcon}
+              />
+            </TouchableOpacity>
+
+            {error && (
+              <View style={styles.errorContainer}>
+                <Icon
+                  name="alert-circle"
+                  size={16}
+                  color={Theme.colors.error}
+                />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <View style={{ width: "100%", marginTop: error ? 8 : 0 }}>
               <Button
                 title="Enter Chat"
                 icon="message-square"
                 onPress={handleEnterChat}
+                isLoading={isEntering}
               />
             </View>
           </>
@@ -151,10 +199,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: "dashed",
     width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
   },
   codeText: {
     ...Theme.typography.header,
     color: Theme.colors.text,
     letterSpacing: 8,
+  },
+  copyIcon: {
+    position: "absolute",
+    right: Theme.spacing.lg,
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 68, 68, 0.1)",
+    padding: Theme.spacing.sm,
+    borderRadius: 8,
+    marginBottom: Theme.spacing.lg,
+    width: "100%",
+    justifyContent: "center",
+  },
+  errorText: {
+    ...Theme.typography.caption,
+    color: Theme.colors.error,
+    marginLeft: 8,
   },
 });

@@ -17,8 +17,6 @@ import { useChatStore } from "../../state";
 import Icon from "react-native-vector-icons/Feather";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const platform = Platform.OS;
-
 export const JoinRoomScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<ChatStackParamList>>();
