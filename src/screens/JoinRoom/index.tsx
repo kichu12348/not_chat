@@ -3,11 +3,10 @@ import {
   View,
   StyleSheet,
   Text,
-  KeyboardAvoidingView,
-  ScrollView,
   Platform,
   TouchableOpacity,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Button, Input } from "../../components";
 import { RoomService } from "../../services";
 import { Theme } from "../../theme";
@@ -69,59 +68,55 @@ export const JoinRoomScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={platform === "ios" ? "padding" : undefined}
-        style={styles.container}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.content}>
-            <Icon
-              name="link"
-              size={48}
-              color={Theme.colors.text}
-              style={styles.icon}
-            />
-            <Text style={styles.title}>JOIN ROOM</Text>
+        <View style={styles.content}>
+          <Icon
+            name="link"
+            size={48}
+            color={Theme.colors.text}
+            style={styles.icon}
+          />
+          <Text style={styles.title}>JOIN ROOM</Text>
 
-            <View style={{ width: "100%", marginTop: Theme.spacing.lg }}>
-              {!!error && (
-                <View style={styles.errorContainer}>
-                  <Icon
-                    name="alert-triangle"
-                    size={16}
-                    color={Theme.colors.error}
-                  />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-
-              <Input
-                placeholder="e.g. A8KXQ9"
-                value={roomCode}
-                onChangeText={(text) => setRoomCode(text.toUpperCase())}
-                autoCapitalize="characters"
-                maxLength={6}
-                textAlign="center"
-                style={{ letterSpacing: 4, ...Theme.typography.title }}
-              />
-
-              <View style={{ marginTop: Theme.spacing.md }}>
-                <Button
-                  title="Connect"
-                  icon="arrow-right"
-                  onPress={handleJoin}
-                  isLoading={isLoading}
-                  disabled={roomCode.trim().length < 6}
+          <View style={{ width: "100%", marginTop: Theme.spacing.lg }}>
+            {!!error && (
+              <View style={styles.errorContainer}>
+                <Icon
+                  name="alert-triangle"
+                  size={16}
+                  color={Theme.colors.error}
                 />
+                <Text style={styles.errorText}>{error}</Text>
               </View>
+            )}
+
+            <Input
+              placeholder="e.g. A8KXQ9"
+              value={roomCode}
+              onChangeText={(text) => setRoomCode(text.toUpperCase())}
+              autoCapitalize="characters"
+              maxLength={6}
+              textAlign="center"
+              style={{ letterSpacing: 4, ...Theme.typography.title }}
+            />
+
+            <View style={{ marginTop: Theme.spacing.md }}>
+              <Button
+                title="Connect"
+                icon="arrow-right"
+                onPress={handleJoin}
+                isLoading={isLoading}
+                disabled={roomCode.trim().length < 6}
+              />
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </KeyboardAwareScrollView>
     </View>
   );
 };

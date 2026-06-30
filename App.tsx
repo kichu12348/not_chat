@@ -4,6 +4,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { enableScreens } from "react-native-screens";
 import { StatusBar } from "react-native";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { RootNavigator } from "./src/navigation";
 import { Theme } from "./src/theme";
 import * as SplashScreen from "expo-splash-screen";
@@ -40,11 +41,13 @@ export default function App() {
       style={{ backgroundColor: Theme.colors.background, flex: 1 }}
     >
       <SafeAreaProvider>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor={Theme.colors.background}
-        />
-        <RootNavigator />
+        <KeyboardProvider preload={false}>
+          <StatusBar
+            barStyle="light-content"
+            backgroundColor={Theme.colors.background}
+          />
+          <RootNavigator />
+        </KeyboardProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

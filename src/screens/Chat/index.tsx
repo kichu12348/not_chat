@@ -4,7 +4,6 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
   Alert,
@@ -18,8 +17,36 @@ import Icon from "react-native-vector-icons/Feather";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useNetInfo } from "@react-native-community/netinfo";
+import { useKeyboardHandler } from "react-native-keyboard-controller";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+
+const useGradualAnimation = () => {
+  const height = useSharedValue(0);
+
+  useKeyboardHandler(
+    {
+      onMove: (event) => {
+        "worklet";
+        height.value = Math.max(event.height, 0);
+      },
+    },
+    [],
+  );
+  return { height };
+};
 
 export const ChatScreen = () => {
+  const { height } = useGradualAnimation();
+
+  const fakeView = useAnimatedStyle(() => {
+    return {
+      height: Math.abs(height.value),
+    };
+  }, []);
+
   const [text, setText] = useState("");
   const messages = useChatStore((state) => state.messages);
   const roomId = useChatStore((state) => state.roomId);
@@ -60,7 +87,7 @@ export const ChatScreen = () => {
 
   const handleTextChange = (newText: string) => {
     setText(newText);
-    
+
     if (!aesKey) return;
 
     if (typingTimeoutRef.current) {
@@ -79,7 +106,7 @@ export const ChatScreen = () => {
     if (!text.trim() || !aesKey) return;
     ChatService.sendMessage(text.trim());
     setText("");
-    
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
@@ -154,11 +181,7 @@ export const ChatScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -243,7 +266,13 @@ export const ChatScreen = () => {
 
       {isPeerTyping && (
         <View style={{ paddingHorizontal: Theme.spacing.md, paddingBottom: 4 }}>
-          <Text style={{ ...Theme.typography.caption, color: Theme.colors.textMuted, fontStyle: "italic" }}>
+          <Text
+            style={{
+              ...Theme.typography.caption,
+              color: Theme.colors.textMuted,
+              fontStyle: "italic",
+            }}
+          >
             Peer is typing...
           </Text>
         </View>
@@ -287,7 +316,8 @@ export const ChatScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+      <Animated.View style={fakeView} />
+    </View>
   );
 };
 

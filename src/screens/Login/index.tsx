@@ -1,12 +1,6 @@
 import React, { useState } from "react";
-import {
-  View,
-  StyleSheet,
-  Text,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { View, StyleSheet, Text, Platform } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Button, Input } from "../../components";
 import { AuthService } from "../../services";
 import { Theme } from "../../theme";
@@ -32,39 +26,39 @@ export const LoginScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <KeyboardAvoidingView
-        behavior={platform === "ios" ? "padding" : undefined}
-        style={styles.container}
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+    >
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={styles.title}>NOTCHAT</Text>
-          <Text style={styles.subtitle}>E2E Encrypted</Text>
+        <Text style={styles.title}>NOTCHAT</Text>
+        <Text style={styles.subtitle}>E2E Encrypted</Text>
 
-          <View style={styles.form}>
-            <Input
-              placeholder="Enter a username..."
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
+        <View style={styles.form}>
+          <Input
+            placeholder="Enter a username..."
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+
+          <View style={styles.buttonWrapper}>
+            <Button
+              title="Start"
+              icon="arrow-right"
+              onPress={handleLogin}
+              isLoading={isLoading}
+              disabled={!username.trim()}
             />
-
-            <View style={styles.buttonWrapper}>
-              <Button
-                title="Start"
-                icon="arrow-right"
-                onPress={handleLogin}
-                isLoading={isLoading}
-                disabled={!username.trim()}
-              />
-            </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </KeyboardAwareScrollView>
     </View>
   );
 };
